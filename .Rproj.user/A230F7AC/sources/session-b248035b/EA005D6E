@@ -1,0 +1,27 @@
+{
+    "id": "EA005D6E",
+    "path": "~/Dropbox/disjointCycles/disjointCycles/test/plotMaker.R",
+    "project_path": "test/plotMaker.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1725485304569.0,
+    "source_on_save": false,
+    "relative_order": 8,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "175,26",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1726958757,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1726958757,
+    "read_only": false,
+    "read_only_alternatives": []
+}
