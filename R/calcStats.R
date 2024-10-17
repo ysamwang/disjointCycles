@@ -18,7 +18,24 @@ calcSandT <- function(Y){
 }
 
 
+.test2ind <- function(u, v, sMat, tMat, Y){
 
+  ## asymptotic Normality through delta method
+  det2 <- sMat[u, u] * tMat[u, u, v] - sMat[u, v] * tMat[u, u, u]
+
+  momentCov <- cov(cbind(Y[,u] * Y[, u], Y[,u] * Y[, v], Y[,u]^3, Y[,u]^2 * Y[, v]))
+  jacobian <- c(tMat[u,u,v], -tMat[u,u,u], -sMat[u,v], sMat[u,u])
+
+
+  deltaVar <- t(jacobian) %*% momentCov %*% jacobian
+
+  chiDelta <- n *det2^2 / deltaVar
+  pValDelta <- pchisq(chiDelta, df = 1, lower.tail = F)
+
+
+  return(pValDelta)
+
+}
 
 .test2joint <- function(u, sMat, tMat, Y, method = "indDelta"){
 

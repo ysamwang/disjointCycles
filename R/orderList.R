@@ -17,11 +17,16 @@ orderList <- function(X){
 
 
 compareOrders <- function(X, Y){
+
+  if(length(X) * length(Y) == 0){
+    print("Length 0 Error")
+    print(X)
+    print(Y)
+  }
   if(length(X) != length(Y)){
     return(FALSE)
   }
+
   all(unlist(mapply(function(x,y){mapply(setequal, x, y)}, X, Y)))
 }
 
-L <- list(list(c(2), c(3), c(4) ), list(c(5,6,7)), list(c(8)), list(c(1)))
-orderList(L)

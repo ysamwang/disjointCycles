@@ -1,7 +1,11 @@
-rMixNorm <- function(n, mu, sd, piMix){
+rMixNorm <- function(n, mu, sd, piMix, flip = T){
   # Flip mu positive/negative
 
-  mu <- mu * sample(c(-1, 1), size = 1)
+  # if flip, then
+  if(flip){
+    mu <- mu * sample(c(-1, 1), size = 1)
+  }
+
 
   totalVar <- sd^2 + mu^2 - mu^2 * ( 2 * piMix - 1)^2
   X <- rnorm(n, mean = mu * (2 * rbinom(n, size = 1, prob = piMix) - 1), sd = sd)
@@ -16,9 +20,6 @@ cycleChain <- function(p, cycleSize = 2, lowEdge = .5, highEdge = .9, posNeg = T
                        parentProb = 1, uniqueTop = T){
 
   Lambda <- matrix(0, p, p)
-
-  # If layer topological ordering is unique, then add an edge from u -> u+1
-
 
   totalCycles <- floor(p/ cycleSize)
 
@@ -43,6 +44,7 @@ cycleChain <- function(p, cycleSize = 2, lowEdge = .5, highEdge = .9, posNeg = T
 
   }
 
+  # If layer topological ordering is unique, then add an edge from u -> u+1
   if(uniqueTop){
 
     Lambda[matrix(c(1:(p-1), 2:p), ncol = 2)] <- runif(p-1, lowEdge, highEdge) *
@@ -68,6 +70,26 @@ ex3_2 <- function(lowEdge = .5, highEdge = .9, posNeg = T){
                   6,7,
                   7,8,
                   8,6), byrow = T, ncol = 2)] <- 1
+
+
+  Lambda <- adjMat * runif(p^2, lowEdge, highEdge) * sample(c(-(2 * posNeg - 1), 1), p^2, replace = T)
+
+
+  return(Lambda)
+}
+
+
+
+cycleDag <- function(cycleSize, lowEdge = .5, highEdge = .9, posNeg = T, parentProb = 1/2){
+
+  p <- cycleSize * 3
+  Lambda <- adjMat <- matrix(0, p, p)
+
+  for(j in 1:3){
+    adjMat[matrix(c(1:cycleSize, 2:cycleSize, 1), ncol = 2) + (j-1) *cycleSize] <- 1
+  }
+
+  adjMat[1:(2*cycleSize), -c(1:(2*cycleSize))] <- rbinom(n = 2*cycleSize^2, size = 1, prob = parentProb)
 
 
   Lambda <- adjMat * runif(p^2, lowEdge, highEdge) * sample(c(-(2 * posNeg - 1), 1), p^2, replace = T)

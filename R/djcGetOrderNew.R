@@ -18,7 +18,7 @@
 #' A list of lists where each internal list contains vectors of nodes which are either of length 1 (indicating
 #' a root singleton) or of length greater than 1 (indicating a root cycle)
 #'
-djcGetOrder <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
+djcGetOrderNew <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
                         methodRoot = "indDelta", methodDet2 = "indDelta",
                         rescaleData = T, verbose = F, pvalAdjMethod = "holm",
                         methodPR = "infFunc", sigmaPop = NULL){
@@ -35,10 +35,10 @@ djcGetOrder <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
 
   # First pass
   #
-  roots <- disjointCycles::djc_recur(Y, alpha2 = alpha2, alpha3 = alpha3, alphaR = alphaR,
-                     methodRoot = methodRoot, methodDet2 = methodDet2,
-                     rescaleData = rescaleData,  pvalAdjMethod =  pvalAdjMethod,
-                     methodPR = methodPR, sigmaPop = sigmaPop)
+  roots <- disjointCycles::djc_recurNew(Y, alpha2 = alpha2, alpha3 = alpha3, alphaR = alphaR,
+                                     methodRoot = methodRoot, methodDet2 = methodDet2,
+                                     rescaleData = rescaleData,  pvalAdjMethod =  pvalAdjMethod,
+                                     methodPR = methodPR, sigmaPop = sigmaPop)
 
   # First layer
   layer <- 1
@@ -64,7 +64,7 @@ djcGetOrder <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
 
 
     # estimate next root layer
-    roots <- disjointCycles::djc_recur(roots$newY, alpha2 = alpha2, alpha3 = alpha3,
+    roots <- disjointCycles::djc_recurNew(roots$newY, alpha2 = alpha2, alpha3 = alpha3,
                                        alphaR = alphaR,
                                        methodRoot = methodRoot,
                                        methodDet2 = methodDet2,
@@ -109,7 +109,7 @@ djcGetOrder <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
 #   roots: vectors of nodes which are either of length 1 (indicating
 #'        a root singleton) or of length greater than 1 (indicating a root cycle)
 #'  newY: an n x p matrix which contains Y for the remaining unordered nodes
-djc_recur <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
+djc_recurNew <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
                       methodRoot = "indDelta", methodDet2 = "indDelta", rescaleData = T,
                       pvalAdjMethod, methodPR, sigmaPop = NULL){
 
@@ -151,9 +151,27 @@ djc_recur <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
   # singletonRoots should be a vector
 
 
-  singletonRoots <- which(p.adjust(sapply(1:p, function(u){.test2joint(u, moments$sMat, moments$tMat,
-                                                                       Y, method = methodRoot)$pval}),
-                                   method = pvalAdjMethod) > alpha2)
+  # Will hold p-values for testing null hypothesis that
+  # d_{uv}^{2x2} == 0
+  # only fills in upper triangle
+  # Use NA so p.adjust does not count diagonals
+  det2 <- matrix(NA, p, p)
+
+  for(u in 1:p){
+    for(v in 1:p){
+
+      # P-value for checking null that det_{u,v} == 0
+      if(u != v){
+        det2[u , v] <- .test2ind(u, v, moments$sMat, moments$tMat, Y)
+      }
+    }
+  }
+
+  # adjust for multiplicity
+  det2 <- matrix(p.adjust(det2, method = pvalAdjMethod), p, p)
+
+  # singletonRoots contains any nodes which do not have rejected null
+  singletonRoots <- which(apply(det2, MAR = 1, FUN = min, na.rm = T) > alpha2)
 
 
   # If there is at least 1 singleton root certified
@@ -184,39 +202,18 @@ djc_recur <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
 
   #### If no singleton roots are found, then test for root cycles ####
 
-  # Will hold p-values for testing null hypothesis that
-  #   d_{uv}^{2x2} == 0 or d_{vu}^{2x2} == 0
-  # only fills in upper triangle
-  det2 <- matrix(1, p, p)
-
-  for(u in 1:(p-1)){
-    for(v in (u+1):p){
-
-      # P-value for checking null that det_{u,v} == 0 or det_{v,u} == 0
-      # if methodDet2 = jointDelta, then tests if det_{u,v} x det_{v,u} == 0
-      # if methodDet2 = indDelta, then tests det_{u,v} == 0 and det_{v,u} == 0 individually
-      #   and returns maximum p-value
-      if(u != v){
-        det2[u , v] <- .test2both(u, v, moments$sMat, moments$tMat, Y, method = methodDet2)$p
-      }
-    }
-  }
-  # adjust for multiplicity
-  det2[upper.tri(det2)] <- p.adjust(det2[upper.tri(det2)], method = pvalAdjMethod)
-
-
-
-
+  diag(det2) <- 1
   ## Get pairs such that d_{u,v} and d_{v,u} are simultaneously non-zero
   # If no pairs are jointly non-zero at alpha2, then raise threshold
   # to the minimum p-value in det2 so at least 1 pair is jointly certified
-  threshold2 <- max(alpha2, min(det2))
-  nonZero2 <- (det2 <= threshold2)
+  threshold2 <- max(alpha2, min(pmax(det2, t(det2)), na.rm = T))
+  nonZero2 <- (pmax(det2, t(det2)) <= threshold2)
 
 
   # Will hold p-values for testing if d_{uv}^{3x3} == 0
   # only fill in upper triangle
-  det3 <- matrix(0, p, p)
+  # Use NA so p.adjust does not count untested pairs
+  det3 <- matrix(NA, p, p)
 
   for(u in 1:(p-1)){
     for(v in (u+1):p){
@@ -225,18 +222,21 @@ djc_recur <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
       }
     }
   }
+
   # adjust for multiple testing
-  det3[upper.tri(det3)] <- p.adjust(det3[upper.tri(det3)], method = pvalAdjMethod)
+  det3[upper.tri(det3, diag = F)] <- p.adjust(det3[upper.tri(det3, diag = F)], method = pvalAdjMethod)
+
 
 
   # Set the threshold to alpha3
   # or decrease to the threshold to the largest p-value if it is smaller
   # than alpha3 so that there is at least 1 pair connected nodes
-  threshold3 <- min(alpha3, max(det3))
+  threshold3 <- min(alpha3, max(det3, na.rm = T), na.rm = T)
 
   # create graph which contains the edge u--v
   # if d_{uv}^{3x3} == 0 and d_{uv}^{2x2} != 0 and d_{vu}^{2x2} != 0
   # use upper since det3 is symmetric and we only use upper tri
+
   G <- igraph::graph_from_adjacency_matrix( det3 >= threshold3 , mode = "upper")
 
   # compute set of max cliques of at least size 2
@@ -244,7 +244,6 @@ djc_recur <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
   # 1 edge in the graph G
   # use as.vector to convert from igraph object to vector
   maxCliques <- lapply(igraph::max_cliques(G, min = 2), function(x){as.vector(x)})
-
 
   ### Pruning C to obtain C' ###
   if(length(maxCliques) == 1){
@@ -280,9 +279,9 @@ djc_recur <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
 
     if(sum(pvalRoots >= alphaR) == 0 ){
 
-        ## if all cycles are rejected, then set root cycle to be all combined
-        ## i.e., all put into 1 big cycle
-        rootCycles <- list(c(unique(unlist(maxCliques))))
+      ## if all cycles are rejected, then set root cycle to be all combined
+      ## i.e., all put into 1 big cycle
+      rootCycles <- list(c(unique(unlist(maxCliques))))
 
 
     } else {
@@ -342,10 +341,10 @@ djc_recur <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
       newY <- matrix(0, n, p)
       for(v in 1:p){
 
-          if(v %in% unordered){
-            # Assumes centered Y so does not include intercept
-            newY[, v] <- RcppArmadillo::fastLm(Y[, v] ~ Y[, ordered] - 1)$res
-          }
+        if(v %in% unordered){
+          # Assumes centered Y so does not include intercept
+          newY[, v] <- RcppArmadillo::fastLm(Y[, v] ~ Y[, ordered] - 1)$res
+        }
       }
 
       newY <- newY[, -c(ordered), drop = F]

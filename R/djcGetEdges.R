@@ -15,7 +15,7 @@
 #'       preceed the other in the topological layers.
 #' }
 #'
-djcGetEdges <- function(topOrdering, Y, alpha, verbose = F, rescale = F, pvalAdjMethod = "holm"){
+djcGetEdges <- function(topOrdering, Y, alpha, verbose = F, rescaleData = T, pvalAdjMethod = "holm"){
 
   ## Iterates through the topological layers
   # and orients edges in a cycle and estimates edgeweights
@@ -23,9 +23,15 @@ djcGetEdges <- function(topOrdering, Y, alpha, verbose = F, rescale = F, pvalAdj
   # layer to every edge in the current layer and then prune edges to estimate a graph
   # uses helper functions constructCycle and pruneParents
 
+
   p <- ncol(Y)
 
-  moments <- distjointCycles::calcSandT(Y)
+  if(rescaleData){
+    Y <- scale(Y)
+  }
+
+
+  moments <- disjointCycles::calcSandT(Y)
 
   Lambda <- adjMat <- matrix(0, p, p)
   pvals <-matrix(-1, p, p)

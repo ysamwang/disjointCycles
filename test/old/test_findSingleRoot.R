@@ -1,4 +1,4 @@
-n <- 500
+n <- 10000
 p <- 10
 
 ### Compare testing jointly vs
@@ -8,7 +8,7 @@ for(i in 1:sim.size){
   dat <- cdcs::rDAG(p, n, dist = "gamma", parent_prob = .5, lowEdge = .5, highEdge = .9)
   Y <- scale(dat$Y, center = F)
 
-  moments <- .calcSandT(Y)
+  moments <- disjointCycles::calcSandT(Y)
 
 
 
@@ -37,10 +37,12 @@ for(i in 1:sim.size){
   if(i%%100==0){cat(i);cat("\n")}
 }
 
-alpha <- .05
+alpha <- .01
 
-final <- colMeans(rec < alpha)
-names(final) <- paste(rep(c("size", "two", "half", "end"), each = 2), rep(c("joint", "Ind"), times = 4), sep = "_")
+final <- matrix(colMeans(rec < alpha), nrow = 1)
+colnames(final) <- paste(rep(c("size", "two", "half", "end"), each = 2), rep(c("joint", "Ind"), times = 4), sep = "_")
 final
+
+xtable::xtable(final[,1:4, drop = F], digits = 3)
 
 

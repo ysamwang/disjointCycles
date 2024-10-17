@@ -1,10 +1,11 @@
-#' Estimate edges in a cycle
+#' Estimate edges in a root cycle
 #'
-#' @param topOrdering a list of lists containing the topological layers estimated by djcGetOrder
-#' @param Y n x p matrix of observations
-#' @param alpha the level for the hypothesis test when pruning parent edges
-#' @param rescaleData whether to rescale data after each step
-#' @param verbose print out results for each step
+#' @param sMat the covariance matrix for the variables in a root cycle.
+#'    If the cycle is not a root cycle, it should be the covariance of the variables after adjusting
+#'    for nodes in preceeding layers
+#' @param tMat the third moment tensor for the variables in a root cycle.
+#'    If the cycle is not a root cycle, it should be the third moments of the variables after adjusting
+#'    for nodes in preceeding layers
 #' @return
 #' \itemize{
 #' \item adjMat the estimated adjacency matrix where adjMat[i,j] == 1 indicates the edge i -> j
@@ -115,21 +116,65 @@ constructCycle <- function(sMat, tMat){
     adjMat[selectedPair[2], selectedPair[1]] <- 1
 
   # adjacency matrix now has a single undirected cycle
-  # now we orient the cycle in an arbitrary direction
+  # now we orient the cycle in the direction with smallest cycle weight
 
 
 
-  dirAdj <- matrix(0, p, p)
+
+  ### Try first direction ###
+  dirAdj1 <- matrix(0, p, p)
+  Lambda1 <- matrix(0, p ,p)
+
   currentNode <- 1
+  # note that this takes min as opposed to below, where max is used
   nextNode <- min(which(adjMat[currentNode, ] == 1))
-  dirAdj[currentNode, nextNode] <- 1
+  dirAdj1[currentNode, nextNode] <- 1
   previousNode <- currentNode
   currentNode <- nextNode
 
   for(i in 1:(p-1)){
     # pick node adjacent to current node which is not the previous node
     nextNode <- setdiff(which(adjMat[currentNode, ] == 1), previousNode)
-    dirAdj[currentNode, nextNode] <- 1
+    dirAdj1[currentNode, nextNode] <- 1
+
+    previousNode <- currentNode
+    currentNode <- nextNode
+  }
+
+
+
+  for(u in 1:p){
+
+      v <- which(dirAdj1[u, ] == 1)
+      w <- which(dirAdj1[v, ] == 1)
+
+      pTerm <- sMat[u,u] * (tMat[u,v,w]^2 - tMat[u, u, w] * tMat[v, v, w]) +
+        sMat[u,w] * (tMat[u,u,u] * tMat[v,v,w] - tMat[u,u,v] * tMat[u,v,w]) +
+        sMat[v,w] * (tMat[u,u,v] * tMat[u,u,w] - tMat[u,u,u] * tMat[u,v,w])
+
+      qTerm <- -sMat[u,v] * (tMat[u,v,w]^2 - tMat[u,u,w] * tMat[v,v,w]) +
+        sMat[u,w] * (tMat[u, v, v] * tMat[u,v,w] - tMat[u,u,v] * tMat[v,v,w]) +
+        sMat[v,w] * (tMat[u,u,v] * tMat[u,v,w] - tMat[u,u,w] * tMat[u,v,v])
+
+      Lambda1[u,v] <- qTerm / pTerm
+
+  }
+
+  ### Try Other Direction ###
+  dirAdj2 <- matrix(0, p, p)
+  Lambda2 <- matrix(0, p ,p)
+
+  currentNode <- 1
+  # note that this takes max as opposed to before, we took min
+  nextNode <- max(which(adjMat[currentNode, ] == 1))
+  dirAdj2[currentNode, nextNode] <- 1
+  previousNode <- currentNode
+  currentNode <- nextNode
+
+  for(i in 1:(p-1)){
+    # pick node adjacent to current node which is not the previous node
+    nextNode <- setdiff(which(adjMat[currentNode, ] == 1), previousNode)
+    dirAdj2[currentNode, nextNode] <- 1
 
     previousNode <- currentNode
     currentNode <- nextNode
@@ -137,31 +182,59 @@ constructCycle <- function(sMat, tMat){
   }
 
 
-  Lambda <- matrix(0, p ,p)
 
   for(u in 1:p){
 
-      v <- which(dirAdj[u, ] == 1)
-      w <- which(dirAdj[v, ] == 1)
+    v <- which(dirAdj2[u, ] == 1)
+    w <- which(dirAdj2[v, ] == 1)
 
-      p <- sMat[u,u] * (tMat[u,v,w]^2 - tMat[u, u, w] * tMat[v, v, w]) +
-        sMat[u,w] * (tMat[u,u,u] * tMat[v,v,w] - tMat[u,u,v] * tMat[u,v,w]) +
-        sMat[v,w] * (tMat[u,u,v] * tMat[u,u,w] - tMat[u,u,u] * tMat[u,v,w])
 
-      q <- -sMat[u,v] * (tMat[u,v,w]^2 - tMat[u,u,w] * tMat[v,v,w]) +
-        sMat[u,w] * (tMat[u, v, v] * tMat[u,v,w] - tMat[u,u,v] * tMat[v,v,w]) +
-        sMat[v,w] * (tMat[u,u,v] * tMat[u,v,w] - tMat[u,u,w] * tMat[u,v,v])
+    pTerm <- sMat[u,u] * (tMat[u,v,w]^2 - tMat[u, u, w] * tMat[v, v, w]) +
+      sMat[u,w] * (tMat[u,u,u] * tMat[v,v,w] - tMat[u,u,v] * tMat[u,v,w]) +
+      sMat[v,w] * (tMat[u,u,v] * tMat[u,u,w] - tMat[u,u,u] * tMat[u,v,w])
 
-      Lambda[u,v] <- q / p
+    qTerm <- -sMat[u,v] * (tMat[u,v,w]^2 - tMat[u,u,w] * tMat[v,v,w]) +
+      sMat[u,w] * (tMat[u, v, v] * tMat[u,v,w] - tMat[u,u,v] * tMat[v,v,w]) +
+      sMat[v,w] * (tMat[u,u,v] * tMat[u,v,w] - tMat[u,u,w] * tMat[u,v,v])
+
+    Lambda2[u,v] <- qTerm / pTerm
 
   }
+
+
+  ### Choose direction with smaller cycle weight
+  if(abs(prod(Lambda1[which(Lambda1 != 0)])) <   abs(prod(Lambda2[which(Lambda2 != 0)]))){
+
+    Lambda <- Lambda1
+    dirAdj <- dirAdj1
+
+  } else {
+
+    Lambda <- Lambda2
+    dirAdj <- dirAdj2
+
+  }
+
 
 
   return(list(adjMat = dirAdj, Lambda = -Lambda))
 }
 
 
-
+#' Test existence of edges from nodes in preceeding layer
+#'
+#' @param C the set of nodes in the preceeding layer
+#' @param D the set of nodes in the current unit (can be a singleton or cycle)
+#' @return
+#' \itemize{
+#' \item adjMat the estimated adjacency matrix where adjMat[i,j] == 1 indicates the edge i -> j
+#' \item Lambda the estimated edge weights where Lambda[i,j] indicates the linear coefficient of i onto j
+#' \item pvals the pvalues (unadjusted for multiple testing) for any edge to be tested. If the value is -1 this indicates
+#'       that there was no test for the parent in this stage. This is because it is part of a cycle so the
+#'       edge was forced to exist or not exist based on the greedy algorithm or because one does not
+#'       preceed the other in the topological layers.
+#' }
+#'
 pruneParents <- function(C, D, sMat, tMat, Y){
 
 
@@ -169,6 +242,7 @@ pruneParents <- function(C, D, sMat, tMat, Y){
   adj_CD <- matrix(0, length(C) + length(D), length(D))
   Lambda <- matrix(0, length(C) + length(D), length(D))
   pvals_CD <- matrix(0, length(C) + length(D), length(D))
+
 
 
   # if D is a singleton and not a cycle, only need to prune parents
@@ -199,7 +273,7 @@ pruneParents <- function(C, D, sMat, tMat, Y){
 
     # Regression coefficients of C onto D
     R_DC <- solve(sMat[C,C]) %*% sMat[C, D]
-    Y_D_adjusted <- Y[, D] - Y[, C] %*% t(R_DC)
+    Y_D_adjusted <- Y[, D] - Y[, C] %*% R_DC
 
     # calculate moments of adjusted data
     adjMoments <- disjointCycles::calcSandT(Y_D_adjusted)
@@ -212,7 +286,7 @@ pruneParents <- function(C, D, sMat, tMat, Y){
     # for dInd in D, get p-values for edge of parent into dInd
     for(dInd in 1:length(D)){
 
-      pvals_CD[1:length(C), dInd] <- disjointCycles::pruneHelper(C, D, dInd, Y, Lambda_CD, Lambda_DD$Lambda)
+      pvals_CD[1:length(C), dInd] <- disjointCycles::pruneHelperCycle(C, D, dInd, Y, Lambda_CD, Lambda_DD$Lambda)
 
     }
 
@@ -225,7 +299,7 @@ pruneParents <- function(C, D, sMat, tMat, Y){
     adj_CD[length(C) + 1:length(D), 1:length(D)] <- Lambda_DD$adj
 
     # Set p-values for (D,D) elements to -1 since they aren't being pruned
-    pvals_CD[length(C)+ 1:length(D), 1:length(D)]
+    pvals_CD[length(C)+ 1:length(D), 1:length(D)] <- -1
 
     return(list(adj_CD = adj_CD, Lambda_CD = Lambda, pvals = pvals_CD))
   }
@@ -234,12 +308,33 @@ pruneParents <- function(C, D, sMat, tMat, Y){
 }
 
 
+#' Helper function to test existence of edges from nodes in preceeding layer
+#' used when D is cycle
+#'
+#' @param C the set of nodes in the preceeding layer
+#' @param D the set of nodes in the current unit (must be cycle)
+#' @param dInd the specific index in D to test
+#' @return the pvalues (unadjusted for multiple testing) for any edge to be tested. If the value is -1 this indicates
+#'       that there was no test for the parent in this stage. This is because it is part of a cycle so the
+#'       edge was forced to exist or not exist based on the greedy algorithm or because one does not
+#'       preceed the other in the topological layers.
+#'
 pruneHelperCycle <- function(C, D, dInd, Y, lambda_CD, lambda_DD){
 
   # parent of D[dInd]
   d2 <- which(lambda_DD[, dInd] != 0)
 
   pvals <- rep(0, length(C))
+
+  # cat("C: ")
+  # cat(C)
+  # cat("; D: ")
+  # cat(D)
+  # cat("; dInd: ")
+  # cat(dInd)
+  # cat("lambda_CD: ")
+  # cat(lambda_CD)
+  # cat("\n")
 
   for(cTest in 1:length(C)){
 
@@ -248,14 +343,16 @@ pruneHelperCycle <- function(C, D, dInd, Y, lambda_CD, lambda_DD){
     lambda_Cd_null[cTest] <- 0
 
     # Form errors under null hypothesis
-    errsD <- Y[, D[dInd]] - Y[, C] %*% lambda_Cd_null - Y[, D] %*% lambda_DD[, dInd]
+    errsD <- Y[, D[dInd], drop = F] - Y[, C, drop = F] %*% lambda_Cd_null -
+      Y[, D, drop = F] %*% lambda_DD[, dInd]
 
 
     # construct A matrix
     A <- matrix(0, length(C) + 1, length(C) + 1)
 
     # C_mod simply reorders C so that cTest appears first
-    C_mod <- c(cTest, setdiff(C, cTest))
+    C_mod <- c(C[cTest], setdiff(C, C[cTest]))
+
     for(c1 in 1:length(C)){
       for(c2 in 1:length(C)){
         A[c1, c2] <- mean(-Y[ ,C_mod[c2]] * Y[ ,C_mod[c1]]^2)
@@ -270,7 +367,7 @@ pruneHelperCycle <- function(C, D, dInd, Y, lambda_CD, lambda_DD){
     A[length(C) + 1, length(C) + 1] <- mean(-2 * errsD * Y[, C_mod[1]] * Y[, D[d2]])
 
 
-    m <- cbind(Y[,C_mod]^2 * c(errsD), errsD^2 * Y[,C_mod[1]])
+    m <- cbind(Y[,C_mod, drop = F]^2 * c(errsD), errsD^2 * Y[,C_mod[1], drop = F])
 
     g <- m[, 1 , drop = F] - t(A[1, -1, drop = F] %*% solve(A[-1, -1, drop = F]) %*% t(m[, -1, drop = F]))
     pvals[cTest] <- emplik::el.test(g, mu = 0)$Pval
@@ -280,42 +377,78 @@ pruneHelperCycle <- function(C, D, dInd, Y, lambda_CD, lambda_DD){
 
 }
 
-
+#' Helper function to test existence of edges from nodes in preceeding layer
+#' used when D is cycle
+#'
+#' @param C the set of nodes in the preceeding layer
+#' @param D the set of nodes in the current unit (must be cycle)
+#' @param dInd the specific index in D to test
+#' @return the pvalues (unadjusted for multiple testing) for any edge to be tested. If the value is -1 this indicates
+#'       that there was no test for the parent in this stage. This is because it is part of a cycle so the
+#'       edge was forced to exist or not exist based on the greedy algorithm or because one does not
+#'       preceed the other in the topological layers.
 pruneHelperSingle <- function(C, D, Y, lambda_CD){
+
+  # cat("C: ")
+  # cat(C)
+  # cat("\n D: ")
+  # cat(D)
+  # cat("\n")
 
   pvals <- matrix(0, length(C))
 
-  for(cTest in 1:length(C)){
+  # if C is length 1, then there are no nuissance parameters to consider
+  if(length(C) == 1){
 
-    # Null hypothesis has 0 for cTest
-    lambda_Cd_null <- lambda_CD
-    lambda_Cd_null[cTest] <- 0
-
-    # Form errors under null hypothesis
-    errsD <- Y[, D] - Y[, C] %*% lambda_Cd_null
+    pvals[1] <- emplik::el.test(Y[, C] *Y[, D] , mu = 0)$Pval
 
 
-    # construct A matrix
-    A <- matrix(0, length(C), length(C))
+  } else {
 
-    # C_mod simply reorders C so that cTest appears first
-    C_mod <- c(cTest, setdiff(C, cTest))
 
-    for(c1 in 1:length(C)){
-      for(c2 in 1:length(C)){
-        A[c1, c2] <- mean(-Y[ ,C_mod[c2]] * Y[ ,C_mod[c1]]^2)
+    for(cTest in 1:length(C)){
+
+      # Null hypothesis has 0 for cTest
+      lambda_Cd_null <- lambda_CD
+      lambda_Cd_null[cTest] <- 0
+
+      # Form errors under null hypothesis
+      errsD <- Y[, D, drop = F] - Y[, C, drop = F] %*% lambda_Cd_null
+
+
+      # construct A matrixC <
+      A <- matrix(0, length(C), length(C))
+
+      # C_mod simply reorders C so that cTest appears first
+      C_mod <- c(C[cTest], setdiff(C, C[cTest]))
+
+      for(c1 in 1:length(C)){
+        for(c2 in 1:length(C)){
+          A[c1, c2] <- mean(-Y[ ,C_mod[c2]] * Y[ ,C_mod[c1]]^2)
+        }
+
       }
+
+      # form estimating equations m
+      m <- Y[, C_mod, drop = F]^2 * c(errsD)
+
+      # cat("C_mod: ")
+      # cat(C_mod)
+      # cat("; M: ")
+      # cat(dim(m))
+      # cat("; A: ")
+      # cat(dim(A))
+      # cat("\n")
+
+      # marginalize to only include first
+      g <- m[, 1, drop = F] - t(A[1, -1, drop = F] %*% solve(A[-1, -1, drop = F]) %*% t(m[, -1, drop = F]))
+      pvals[cTest] <- emplik::el.test(g, mu = 0)$Pval
 
     }
 
-    # form estimating equations m
-    m <- Y[, C_mod]^2 * c(errsD)
-
-    # marginalize to only include first
-    g <- m[, 1 , drop = F] - t(A[1, -1, drop = F] %*% solve(A[-1, -1, drop = F]) %*% t(m[, -1, drop = F]))
-    pvals[cTest] <- emplik::el.test(g, mu = 0)$Pval
-
   }
+
+
   return(pvals)
 
 }
