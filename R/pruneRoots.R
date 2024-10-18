@@ -1,3 +1,18 @@
+#' Helper function used to select a root cycle from the set C
+#'
+#' @param C the clique of interest
+#' @param D all other nodes
+#' @param Y the n x p data matrix
+#' @param methodPR the method to be used: chisq, infFunc, or naive
+#' @return
+#' \itemize{
+#' \item B the matrix of edge weights
+#' \item Y the n x p data
+#' \item errs the error realizations
+#' \item scales the variance of the errors
+#' \item mu the intercept terms
+#' }
+#'
 pruneHelperRootCycle <- function(C, D, Y, methodPR = "infFunc"){
 
   if(methodPR == "chisq"){

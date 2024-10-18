@@ -15,7 +15,20 @@ orderList <- function(X){
     return(X)
 }
 
-
+#' Compare whether two estimated orders are the same
+#'
+#' @param sMat the covariance matrix for the variables in a root cycle.
+#'    If the cycle is not a root cycle, it should be the covariance of the variables after adjusting
+#'    for nodes in preceeding layers
+#' @param tMat the third moment tensor for the variables in a root cycle.
+#'    If the cycle is not a root cycle, it should be the third moments of the variables after adjusting
+#'    for nodes in preceeding layers
+#' @return
+#' \itemize{
+#' \item adjMat the estimated adjacency matrix where adjMat[i,j] == 1 indicates the edge i -> j
+#' \item Lambda the estimated edge weights where Lambda[i,j] indicates the linear coefficient of i onto j
+#' }
+#'
 compareOrders <- function(X, Y){
 
   if(length(X) * length(Y) == 0){
@@ -23,6 +36,7 @@ compareOrders <- function(X, Y){
     print(X)
     print(Y)
   }
+
   if(length(X) != length(Y)){
     return(FALSE)
   }

@@ -40,7 +40,7 @@ agTabMax <- agTab %>% filter(rescaleData == T) %>%group_by(cycleSize, n) %>%
             ln_edge = max(ln_edge)) %>% print(n = 50)
 
 setEPS()
-postscript("~/Dropbox/disjointCycles/simResults/plots/cycleChain12.eps", width = 6, height = 4)
+postscript("~/Dropbox/Apps/Overleaf/Cyclic linear non-Gaussian causal models/figures/cycleChain12.eps", width = 8, height = 4)
 par(mfrow = c(2,3))
 par(mar = c(1, .5, 1, .5))
 par(oma = c(4.5, 4, 2,0))
@@ -85,7 +85,7 @@ for(cInd in c.list){
 par(fig=c(0, 1, 0, 1), oma=c(0, 0, 0, 0), mar=c(0, 0, 0, 0), new=TRUE)
 plot(0, 0, type='n', bty='n', xaxt='n', yaxt='n')
 legend("bottom", legend = c("Mixture", "Gamma", "Lognormal"),
-       pch = c(2,1,3), col = c("darkred", "darkblue", "darkgreen"),
+       pch = c(2,1,3), col = c("darkblue", "darkred", "darkgreen"),
        ncol = 3)
 dev.off()
 
@@ -133,7 +133,7 @@ agTabMax8 <- agTab8 %>% filter(rescaleData == T) %>%group_by(cycleSize, n) %>%
 
 p <- 8
 setEPS()
-postscript("~/Dropbox/disjointCycles/simResults/plots/cycleChain8.eps", width = 6, height = 4)
+postscript("~/Dropbox/Apps/Overleaf/Cyclic linear non-Gaussian causal models/figures/cycleChain8.eps", width = 8, height = 4)
 par(mfrow = c(2,2))
 par(mar = c(1, .5, 1, .5))
 par(oma = c(4.5, 4, 2,0))
@@ -178,7 +178,7 @@ for(cInd in c.list){
 par(fig=c(0, 1, 0, 1), oma=c(0, 0, 0, 0), mar=c(0, 0, 0, 0), new=TRUE)
 plot(0, 0, type='n', bty='n', xaxt='n', yaxt='n')
 legend("bottom", legend = c("Mixture", "Gamma", "Lognormal"),
-       pch = c(2,1,3), col = c("darkred", "darkblue", "darkgreen"),
+       pch = c(2,1,3), col = c("darkblue", "darkred", "darkgreen"),
        ncol = 3)
 dev.off()
 
@@ -221,9 +221,9 @@ agTabEx32 %>% filter(rescaleData == T) %>%group_by(n) %>%
             g_edge = which.max(g_edge), m_edge = which.max(m_edge)) %>% print(n = 50)
 
 setEPS()
-postscript("~/Dropbox/disjointCycles/simResults/plots/ex32.eps", width = 6, height = 4)
+postscript("~/Dropbox/Apps/Overleaf/Cyclic linear non-Gaussian causal models/figures/ex32.eps",
+           width = 8, height = 4)
 par(mfrow = c(1,2))
-par(mar = c(2, 4, 2, .5))
 par(oma = c(2,0,0,0))
 
 plot(agTabMaxEx32$g_ord, type = "n",
@@ -261,9 +261,99 @@ par(fig=c(0, 1, 0, 1), oma=c(0, 0, 0, 0), mar=c(0, 0, 0, 0), new=TRUE)
 plot(0, 0, type='n', bty='n', xaxt='n', yaxt='n')
 mtext(side = 3, "Example 3.2", line = -1)
 legend("bottom", legend = c("Mixture", "Gamma", "Lognormal"),
-       pch = c(2,1,3), col = c("darkred", "darkblue", "darkgreen"),
+       pch = c(2,1,3), col = c("darkblue", "darkred", "darkgreen"),
        ncol = 3)
 dev.off()
+
+
+p <- 8
+setEPS()
+postscript("~/Dropbox/Apps/Overleaf/Cyclic linear non-Gaussian causal models/figures/comb8.eps",
+           width = 8, height = 4)
+par(mfrow = c(2,3))
+par(mar = c(1, .5, 1, .5))
+par(oma = c(4.5, 4, 2,0))
+
+
+plot(agTabMaxEx32$g_ord, type = "n",
+     main = "", xaxt = "n", ylab = "", yaxt = "n",
+     xlab = "", ylim = c(0, 1), pch = NA)
+rect(par("usr")[1],par("usr")[3],par("usr")[2],par("usr")[4],col = "gray92")
+abline(h = seq(0, 1, by = .2), lty = 3, col = "white", lwd = 1.5)
+mtext("Example 3.2")
+mtext("% Cor. Ordering", side = 2, line = 2)
+axis(side = 2, at = seq(0, 1, by = .2))
+# axis(side = 1, at =1:3, labels = n.list/1000)
+lines(agTabMaxEx32$g_ord,
+      type= "b", col = "darkred", pch = 1, lwd =2)
+lines(agTabMaxEx32$m_ord,
+      type= "b", col = "darkblue", pch = 2, lwd =2)
+lines(agTabMaxEx32$ln_ord,
+      col = "darkgreen", pch = 3, type = "b", lwd =2)
+
+
+for(cInd in c.list){
+  plot(agTabMax8$g_ord[which(agTabMax8$cycleSize == cInd)], type = "n",
+       main = "", xaxt = "n", ylab = "", yaxt = "n",
+       xlab = "", ylim = c(0, 1), pch = NA)
+  mtext(paste("Cycle Size =", cInd))
+  rect(par("usr")[1],par("usr")[3],par("usr")[2],par("usr")[4],col = "gray92")
+  abline(h = seq(0, 1, by = .2), lty = 3, col = "white", lwd = 1.5)
+  # if(cInd == 2){
+  #   mtext("% Cor. Ordering", side = 2, line = 2)
+  #   axis(side = 2, at = seq(0, 1, by = .2))
+  # }
+  lines(agTabMax8$g_ord[which(agTabMax8$cycleSize == cInd)],
+        type= "b", col = "darkred", pch = 1, lwd =2)
+  lines(agTabMax8$m_ord[which(agTabMax8$cycleSize == cInd)],
+        type= "b", col = "darkblue", pch = 2, lwd =2)
+  lines(agTabMax8$ln_ord[which(agTabMax8$cycleSize == cInd)],
+        col = "darkgreen", pch = 3, type = "b", lwd =2)
+}
+
+plot(agTabMaxEx32$g_edge, type = "n",
+     main = "", xaxt = "n", ylab = "", yaxt = "n",
+     xlab = "", ylim = c(44, 56), pch = NA)
+rect(par("usr")[1],par("usr")[3],par("usr")[2],par("usr")[4],col = "gray92")
+abline(h = seq(40, p * (p-1), by = p/2), lty = 3, col = "white", lwd = 1.5)
+mtext("Num. Cor. Edges", side = 2, line = 2)
+axis(side = 2, at = seq(40, 56, by = 4))
+lines(agTabMaxEx32$g_edge - 8,
+      type= "b", col = "darkred", pch = 1, lwd =2)
+lines(agTabMaxEx32$m_edge -8,
+      type= "b", col = "darkblue", pch = 2, lwd =2)
+lines(agTabMaxEx32$ln_edge -8,
+      col = "darkgreen", pch = 3, type = "b", lwd =2)
+axis(side = 1, at =1:3, labels = n.list/1000)
+
+
+for(cInd in c.list){
+  plot(agTabMax8$g_edge[which(agTabMax8$cycleSize == cInd)] - 12, type = "n",
+       main = "", xaxt = "n", ylab = "", yaxt = "n",
+       xlab = "", ylim = c(35, p*(p-1)), pch = NA)
+  rect(par("usr")[1],par("usr")[3],par("usr")[2],par("usr")[4],col = "gray92")
+  axis(side = 1, at = 1:3, labels = n.list/ 1000)
+  abline(h = seq(0, p*(p-1), by = p), lty = 3, col = "white", lwd = 1.5)
+  # if(cInd == 2){
+  #   mtext("Num. Cor. Edges", side = 2, line = 2)
+  #   axis(side = 2, at = seq(0, p*(p-1), by = p))
+  # }
+
+  lines(agTabMax8$g_edge[which(agTabMax8$cycleSize == cInd)] - p,
+        type= "b", col = "darkred", pch = 1, lwd =2)
+  lines(agTabMax8$m_edge[which(agTabMax8$cycleSize == cInd)] - p,
+        type= "b", col = "darkblue", pch = 2, lwd =2)
+  lines(agTabMax8$ln_edge[which(agTabMax8$cycleSize == cInd)] - p,
+        col = "darkgreen", pch = 3, type = "b", lwd =2)
+}
+par(fig=c(0, 1, 0, 1), oma=c(0, 0, 0, 0), mar=c(0, 0, 0, 0), new=TRUE)
+plot(0, 0, type='n', bty='n', xaxt='n', yaxt='n')
+legend("bottom", legend = c("Mixture", "Gamma", "Lognormal"),
+       pch = c(2,1,3), col = c("darkblue", "darkred", "darkgreen"),
+       ncol = 3)
+dev.off()
+
+
 
 #############################################
 sample.size <- 500
