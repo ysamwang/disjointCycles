@@ -77,11 +77,16 @@ rLSEM <- function(p, n,
 
     errs <- matrix(0, nrow = n, ncol = p)
 
-    piMix <- .15
+    piMix <- .1
 
     for(v in 1:p){
       errs[, v] <- rMixNorm(n, 2, .1, piMix, flip = flip) * scales[v]
     }
+
+  } else if (dist == "beta"){
+    a <- .5
+    b <- 6
+    errs <- matrix((rbeta(n * p, a, b) - a / (a + b)) * scales, nrow = n, ncol = p, byrow = T)
 
   }
 

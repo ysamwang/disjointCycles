@@ -387,7 +387,8 @@ pruneHelperCycle <- function(C, D, dInd, Y, lambda_CD, lambda_DD){
 #'       that there was no test for the parent in this stage. This is because it is part of a cycle so the
 #'       edge was forced to exist or not exist based on the greedy algorithm or because one does not
 #'       preceed the other in the topological layers.
-pruneHelperSingle <- function(C, D, Y, lambda_CD){
+#'
+pruneHelperSingle <- function(C, D, Y, lambda_CD, pr = "infFunc"){
 
   # cat("C: ")
   # cat(C)
@@ -397,56 +398,81 @@ pruneHelperSingle <- function(C, D, Y, lambda_CD){
 
   pvals <- matrix(0, length(C))
 
-  # if C is length 1, then there are no nuissance parameters to consider
-  if(length(C) == 1){
-
-    pvals[1] <- emplik::el.test(Y[, C] *Y[, D] , mu = 0)$Pval
 
 
-  } else {
 
 
-    for(cTest in 1:length(C)){
 
-      # Null hypothesis has 0 for cTest
-      lambda_Cd_null <- lambda_CD
-      lambda_Cd_null[cTest] <- 0
-
-      # Form errors under null hypothesis
-      errsD <- Y[, D, drop = F] - Y[, C, drop = F] %*% lambda_Cd_null
+      if(pr == "infFunc"){
 
 
-      # construct A matrixC <
-      A <- matrix(0, length(C), length(C))
+        # if C is length 1, then there are no nuissance parameters to consider
+        if(length(C) == 1){
 
-      # C_mod simply reorders C so that cTest appears first
-      C_mod <- c(C[cTest], setdiff(C, C[cTest]))
+          pvals[1] <- emplik::el.test(Y[, C] *Y[, D] , mu = 0)$Pval
 
-      for(c1 in 1:length(C)){
-        for(c2 in 1:length(C)){
-          A[c1, c2] <- mean(-Y[ ,C_mod[c2]] * Y[ ,C_mod[c1]]^2)
+        } else {
+
+
+          for(cTest in 1:length(C)){
+
+            # Null hypothesis has 0 for cTest
+            lambda_Cd_null <- lambda_CD
+            lambda_Cd_null[cTest] <- 0
+
+            # Form errors under null hypothesis
+            errsD <- Y[, D, drop = F] - Y[, C, drop = F] %*% lambda_Cd_null
+
+
+            # construct A matrixC <
+            A <- matrix(0, length(C), length(C))
+
+            # C_mod simply reorders C so that cTest appears first
+            C_mod <- c(C[cTest], setdiff(C, C[cTest]))
+
+            for(c1 in 1:length(C)){
+              for(c2 in 1:length(C)){
+                A[c1, c2] <- mean(-Y[ ,C_mod[c2]] * Y[ ,C_mod[c1]]^2)
+              }
+
+            }
+
+            # form estimating equations m
+            m <- Y[, C_mod, drop = F]^2 * c(errsD)
+
+            # cat("C_mod: ")
+            # cat(C_mod)
+            # cat("; M: ")
+            # cat(dim(m))
+            # cat("; A: ")
+            # cat(dim(A))
+            # cat("\n")
+
+            # marginalize to only include first
+            g <- m[, 1, drop = F] - t(A[1, -1, drop = F] %*% solve(A[-1, -1, drop = F]) %*% t(m[, -1, drop = F]))
+            pvals[cTest] <- emplik::el.test(g, mu = 0)$Pval
+
+          }
+
+
+
         }
+
+
+
+
+
+      } else if(pr == "chisq"){
+
+
+        # D is singleton
+
+          z <- colMeans(Y[, C] *Y[, D])
+          pvals[1] <- pchisq(z %*% solve(cov(Y[, C] * Y[, D])) %*% t(z), lower.tail = F, df = length(D))
+
 
       }
 
-      # form estimating equations m
-      m <- Y[, C_mod, drop = F]^2 * c(errsD)
-
-      # cat("C_mod: ")
-      # cat(C_mod)
-      # cat("; M: ")
-      # cat(dim(m))
-      # cat("; A: ")
-      # cat(dim(A))
-      # cat("\n")
-
-      # marginalize to only include first
-      g <- m[, 1, drop = F] - t(A[1, -1, drop = F] %*% solve(A[-1, -1, drop = F]) %*% t(m[, -1, drop = F]))
-      pvals[cTest] <- emplik::el.test(g, mu = 0)$Pval
-
-    }
-
-  }
 
 
   return(pvals)

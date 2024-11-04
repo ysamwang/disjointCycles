@@ -7,12 +7,12 @@ print(runInd)
 
 set.seed(runInd + 2000)
 library("disjointCycles")
-sample.size <- 400
+sample.size <- 200
 rep.runs <- 25
 n.list <- c(10, 25, 50) * 1000
 a.list <- c(2.5e-1, 1e-1, 1e-2, 1e-3, 1e-4)
 mt.list <- c("BH", "holm")
-pr.list <- c("naive")
+pr.list <- c("naive", "chisq")
 c.list <- c(2, 4)
 res.list <- c(T)
 param.grid <- expand.grid(rep(n.list, sample.size / rep.runs), a.list, mt.list, pr.list, c.list, res.list)
@@ -118,5 +118,5 @@ colnames(rec) <- paste(rep(c("gamma", "mixNorm", "ln"), each = 7),
 
 outTab <- data.frame(p, cycleSize, alpha, n, mt, pr, rescaleData, rec)
 
-write.csv(outTab, paste("../results/cycleChain8/cycleChain8_",runInd, ".csv", sep = ""), row.names = F)
+write.csv(outTab, paste("../results/cycleChain8/cycleChain8_chisq",runInd, ".csv", sep = ""), row.names = F)
 
