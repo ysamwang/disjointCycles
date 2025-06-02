@@ -13,15 +13,28 @@
 #' \item mu the intercept terms
 #' }
 #'
-pruneHelperRootCycle <- function(C, D, Y, methodPR = "infFunc"){
+pruneHelperRootCycle <- function(C, D, Y, methodPR = "infFunc", rescaleResid = T){
+
+  n <- nrow(Y)
+  # cat("Pruning:")
+  # cat(C)
+  # cat("\n")
+  # cat(D)
+  # cat("\n")
+  if(length(intersect(C, D)) > 0){
+    cat("Error C and D have non-empty intersection!")
+  }
 
   if(methodPR == "chisq"){
-    res <- Y[, D, drop = F] - Y[, C, drop = F] %*% solve(t(Y[, C, drop = F]) %*% Y[, C, drop = F],  t(Y[, C, drop = F]) %*% Y[, D, drop = F])
+    res <- Y[, D, drop = F] -
+      Y[, C, drop = F] %*% solve(t(Y[, C, drop = F]) %*% Y[, C, drop = F],
+                                 t(Y[, C, drop = F]) %*% Y[, D, drop = F])
+
 
     m <- matrix(0, n, length(C) * length(D))
     for(dInd in 1:length(D)){
       inds <- (1:length(C)) +(dInd - 1) * length(C)
-      m[, inds] <- res[, dInd] * Y[, C]^2
+      m[, inds] <- c(scale(res[, dInd], scale = rescaleResid)) * Y[, C]^2
     }
 
     return(pchisq(n * colMeans(m) %*% solve(cov(m)) %*% colMeans(m), df = ncol(m), lower.tail = F))

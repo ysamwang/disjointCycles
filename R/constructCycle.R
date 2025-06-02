@@ -343,8 +343,9 @@ pruneHelperCycle <- function(C, D, dInd, Y, lambda_CD, lambda_DD){
     lambda_Cd_null[cTest] <- 0
 
     # Form errors under null hypothesis
-    errsD <- Y[, D[dInd], drop = F] - Y[, C, drop = F] %*% lambda_Cd_null -
-      Y[, D, drop = F] %*% lambda_DD[, dInd]
+    # scaling errors to prevent singular A
+    errsD <- scale(Y[, D[dInd], drop = F] - Y[, C, drop = F] %*% lambda_Cd_null -
+      Y[, D, drop = F] %*% lambda_DD[, dInd])
 
 
     # construct A matrix
@@ -355,7 +356,7 @@ pruneHelperCycle <- function(C, D, dInd, Y, lambda_CD, lambda_DD){
 
     for(c1 in 1:length(C)){
       for(c2 in 1:length(C)){
-        A[c1, c2] <- mean(-Y[ ,C_mod[c2]] * Y[ ,C_mod[c1]]^2)
+        A[c1, c2] <- mean(-Y[ ,C_mod[c2]] * Y[ , C_mod[c1]]^2)
       }
       A[c1, length(C) + 1] <- mean(-Y[ ,D[d2]] * Y[ ,C_mod[c1]]^2)
     }
@@ -421,7 +422,7 @@ pruneHelperSingle <- function(C, D, Y, lambda_CD, pr = "infFunc"){
             lambda_Cd_null[cTest] <- 0
 
             # Form errors under null hypothesis
-            errsD <- Y[, D, drop = F] - Y[, C, drop = F] %*% lambda_Cd_null
+            errsD <- scale(Y[, D, drop = F] - Y[, C, drop = F] %*% lambda_Cd_null)
 
 
             # construct A matrixC <

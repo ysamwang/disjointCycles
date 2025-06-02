@@ -1,3 +1,9 @@
+#' Calculate 2nd and 3rd moment tensors
+#'
+#' @param Y n x p matrix of observation
+#' @return
+#' A list of sMat and tMat which are the 2nd and 3rd order moment tensors
+#'
 calcSandT <- function(Y){
   n <- nrow(Y)
   p <- ncol (Y)
@@ -18,8 +24,9 @@ calcSandT <- function(Y){
 }
 
 
+## Test det2_{u,v} == 0 through asymptotic normality
 .test2ind <- function(u, v, sMat, tMat, Y){
-
+  n <- nrow(Y)
   ## asymptotic Normality through delta method
   det2 <- sMat[u, u] * tMat[u, u, v] - sMat[u, v] * tMat[u, u, u]
 
@@ -37,6 +44,7 @@ calcSandT <- function(Y){
 
 }
 
+## Test det2_{u,v} == 0 through asymptotic normality
 .test2joint <- function(u, sMat, tMat, Y, method = "indDelta"){
 
 
@@ -69,6 +77,7 @@ calcSandT <- function(Y){
 
   # Chi-squared test for vector (d_{u,v}^{2} : v != u) == 0
   if(method == "jointDelta"){
+
 
     Sigma <- matrix(0, 2 * p, 2 * p)
     for(v in 1:p){
@@ -136,7 +145,7 @@ calcSandT <- function(Y){
 .test2both <- function(u, v, sMat, tMat, Y, method = "indDelta"){
 
 
-
+  n <- nrow(Y)
   .test2ind <- function(u, v){
 
     ## asymptotic Normality through delta method
@@ -204,6 +213,7 @@ calcSandT <- function(Y){
 
 
 .test3 <- function(u, v, sMat, tMat, Y) {
+  n <- nrow(Y)
 
   det3 <- sMat[u, u] * (tMat[u, u, v] * tMat[v, v, v] - tMat[u, v, v] * tMat[u, v, v]) -
     sMat[u, v] * (tMat[u, u, u] * tMat[v, v, v] - tMat[u, v, v] * tMat[u, u , v]) +

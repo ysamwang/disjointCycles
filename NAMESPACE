@@ -1,3 +1,4 @@
 exportPattern("^[[:alpha:]]+")
-importFrom(Rcpp, evalCpp)
-useDynLib(disjointCycles, .registration = TRUE)
+importFrom("stats", "cov", "cov2cor", "p.adjust", "pchisq", "rbeta",
+               "rbinom", "rgamma", "rnorm", "runif", "rweibull")
+    importFrom("utils", "combn")

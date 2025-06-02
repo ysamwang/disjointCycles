@@ -5,10 +5,10 @@
 #' @param alpha3 the level for the hypothesis test when determining
 #' @param alphaR the level for the hypothesis test when
 #' @param methodRoot which method to use for testing singleton roots;
-#'  i.e., for fixed u H_0: det_{u,v}^{2x2} == 0 for v!=u. Options are indDelta which tests each value individually using
+#'  i.e., for fixed u \eqn{H_0: det_{u,v}^{2x2} == 0} for v!=u. Options are indDelta which tests each value individually using
 #'  asymptotic normality and the adjusting for multiple testing with holm or jointDelta which uses asymptotic normality of entire vector
 #'   and does a single chi-squared test
-#' @param methodDet2 which method to use for testing H_0: det_{u,v}^{2x2} != 0 or det_{v,u}^{2x2} != 0
+#' @param methodDet2 which method to use for testing \eqn{H_0: det_{u,v}^{2x2} != 0} or \eqn{det_{v,u}^{2x2} != 0}
 #' Options are indDelta which tests each value individually using
 #'  asymptotic normality and the adjusting for multiple testing with holm or jointDelta which tests whether the product of the two quantities
 #'  are non-zero and uses asymptotic normality
@@ -21,7 +21,7 @@
 djcGetOrderNew <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
                         methodRoot = "indDelta", methodDet2 = "indDelta",
                         rescaleData = T, verbose = F, pvalAdjMethod = "holm",
-                        methodPR = "infFunc", sigmaPop = NULL){
+                        methodPR = "infFunc", sigmaPop = NULL, rescaleResid = T){
 
   # Uses djc_recur to iteratively estimate root layers
 
@@ -38,7 +38,7 @@ djcGetOrderNew <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
   roots <- disjointCycles::djc_recurNew(Y, alpha2 = alpha2, alpha3 = alpha3, alphaR = alphaR,
                                      methodRoot = methodRoot, methodDet2 = methodDet2,
                                      rescaleData = rescaleData,  pvalAdjMethod =  pvalAdjMethod,
-                                     methodPR = methodPR, sigmaPop = sigmaPop)
+                                     methodPR = methodPR, sigmaPop = sigmaPop, rescaleResid = rescaleResid)
 
   # First layer
   layer <- 1
@@ -70,7 +70,7 @@ djcGetOrderNew <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
                                        methodDet2 = methodDet2,
                                        rescaleData = rescaleData,
                                        pvalAdjMethod = pvalAdjMethod,
-                                       methodPR = methodPR, sigmaPop = sigmaPop)
+                                       methodPR = methodPR, sigmaPop = sigmaPop, rescaleResid= rescaleResid)
 
     # djc_recur returns indices corresponding to 1:ncol(newY)
     # indexBack maps those back to the original indices
@@ -111,7 +111,7 @@ djcGetOrderNew <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
 #'  newY: an n x p matrix which contains Y for the remaining unordered nodes
 djc_recurNew <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
                       methodRoot = "indDelta", methodDet2 = "indDelta", rescaleData = T,
-                      pvalAdjMethod, methodPR, sigmaPop = NULL){
+                      pvalAdjMethod, methodPR, sigmaPop = NULL, rescaleResid = T){
 
 
 
@@ -155,6 +155,7 @@ djc_recurNew <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
   # d_{uv}^{2x2} == 0
   # only fills in upper triangle
   # Use NA so p.adjust does not count diagonals
+
   det2 <- matrix(NA, p, p)
 
   for(u in 1:p){
@@ -170,8 +171,26 @@ djc_recurNew <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
   # adjust for multiplicity
   det2 <- matrix(p.adjust(det2, method = pvalAdjMethod), p, p)
 
-  # singletonRoots contains any nodes which do not have rejected null
-  singletonRoots <- which(apply(det2, MAR = 1, FUN = min, na.rm = T) > alpha2)
+  if(methodRoot == "indDelta"){
+
+    # singletonRoots contains any nodes which do not have rejected null
+    singletonRoots <- which(apply(det2, MAR = 1, FUN = min, na.rm = T) > alpha2)
+
+
+  } else if(methodRoot == "jointDelta") {
+
+    # singletonRoots contains any nodes do not have rejected null
+    singletonRoots <- which(p.adjust(
+      sapply(1:p, function(u){.test2joint(u, moments$sMat, moments$tMat, Y, method = "jointDelta")$pval}),
+      method = pvalAdjMethod)  > alpha2)
+
+
+
+  } else {
+    cat("Incorrect option for methodRoot!")
+    stop()
+  }
+
 
 
   # If there is at least 1 singleton root certified
@@ -271,7 +290,7 @@ djc_recurNew <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
 
       # get other nodes in maxCliques list and get residuals
       C2 <- setdiff(C1, cliqueK)
-      pvalRoots[k] <- pruneHelperRootCycle(cliqueK, C2, Y, methodPR = methodPR)
+      pvalRoots[k] <- pruneHelperRootCycle(cliqueK, C2, Y, methodPR = methodPR, rescaleResid = rescaleResid)
     }
 
     # Adjust for multiple testing

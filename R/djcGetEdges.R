@@ -4,6 +4,7 @@
 #' @param Y n x p matrix of observations
 #' @param alpha the level for the hypothesis test when pruning parent edges
 #' @param rescaleData whether to rescale data after each step
+#' @param pvalAdjMethod the multiple testing adjustment procedure
 #' @param verbose print out results for each step
 #' @return
 #' \itemize{

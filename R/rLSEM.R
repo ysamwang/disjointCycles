@@ -12,7 +12,6 @@
 #' @param LambdaIn a matrix of edges which can be passed in instead of randomly drawing edges
 #' @param scalesIn a vector of error variances which can be passed in instead of randomly drawing
 #' @param posAndNeg whether edges should be both positive and negative or only positive
-#' @param flip for mixed normal, whether the mean skew should flip between positive and negative or only positive
 #' @return
 #' \itemize{
 #' \item B the matrix of edge weights
@@ -26,7 +25,7 @@ rLSEM <- function(p, n,
                  lowScale = 1, highScale = 1,
                  lowEdge = .3, highEdge = 1,
                  dist = "gauss", AdjMat = NULL,
-                 LambdaIn = NULL, scalesIn = NULL, posAndNeg = T, flip = F) {
+                 LambdaIn = NULL, scalesIn = NULL, posAndNeg = T) {
 
   if(posAndNeg){
     signsAllowed <- c(-1, 1)
@@ -80,7 +79,7 @@ rLSEM <- function(p, n,
     piMix <- .1
 
     for(v in 1:p){
-      errs[, v] <- rMixNorm(n, 2, .1, piMix, flip = flip) * scales[v]
+      errs[, v] <- rMixNorm(n, 2, .1, piMix) * scales[v]
     }
 
   } else if (dist == "beta"){

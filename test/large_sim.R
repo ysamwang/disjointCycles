@@ -1,3 +1,7 @@
+### Simulations from Section 5 and Appendix B examining performance of the proposed procedure
+
+# runInd is an argument which is passed in. It goes from 1-800 and sets the seed
+# and simulation settings below
 runInd <- 1
 args <- commandArgs(TRUE)
 for(i in 1:length(args)){
@@ -7,226 +11,484 @@ print(runInd)
 
 set.seed(runInd + 2000)
 library("disjointCycles")
-sample.size <- 50
-rep.runs <- 1
-# p.list <- c(20, 25, 30)
-p.list <- seq(30, 45, by = 15)
-n.list <- c(50, 100) * 1000
-a.list <- c(3e-1, 5e-2, 1e-2, 1e-3)
-mt.list <- c("BH", "holm")
-pr.list <- c("naive", "chisq")
-c.list <- c(3)
+
+
+## the simulation settings considered
+sample.size <- 100
+rep.runs <- 2
+p.list <- c(30, 45, 60)
+n.list <- c(10, 25, 50, 100) * 1000
+a.list <- c(2e-1, 5e-2, 1e-2, 1e-3) # the nominal level of each test conducted
+mt.list <- c("BH", "holm") # the multiple testing adjustment procedure used
+pr.list <- c("chisq") # the test used for pruning roots
+c.list <- c(3) # size of cycles
+# c.list <- c(5)
 res.list <- c(T)
-param.grid <- expand.grid(rep(n.list, sample.size / rep.runs), a.list, mt.list, pr.list, c.list, res.list, p.list)
+ep.list <- c(1/2) #probability of edge from ancestor to descendant not in same cycle
+param.grid <- expand.grid(rep(n.list, sample.size / rep.runs), a.list, mt.list,
+                          pr.list, c.list, res.list, ep.list)
 dim(param.grid)
 # 900
 
-lowEdge <- .5
-highEdge <- .8
-lowScale <- .8
-highScale <- 1
-parentProb <- 3/4
+
+lowEdge <- .5  # lower bound on absolute value of edge
+highEdge <- .8 # upper bound on absolute value of edge
+lowScale <- .8 # lower bound on sd of idiosyncractic error
+highScale <- 1 # upper bound on sd of idiosyncractic  error
+
 
 n <- param.grid[runInd, 1]
-alpha <- param.grid[runInd, 2]
-mt <- as.character(param.grid[runInd, 3])
-pr <- as.character(param.grid[runInd, 4])
-cycleSize <- param.grid[runInd, 5]
-rescaleData <- param.grid[runInd, 6]
-p <- param.grid[runInd, 7]
+alpha <- param.grid[runInd, 2] # the nominal level of each test conducted
+mt <- as.character(param.grid[runInd, 3]) # the multiple testing adjustment procedure used
+pr <- as.character(param.grid[runInd, 4]) # the test used for pruning roots
+cycleSize <- param.grid[runInd, 5] # size of each cycle
+rescaleData <- param.grid[runInd, 6] # rescale and center the data
+parentProb <- param.grid[runInd, 7] #probability of edge from ancestor to descendant not in same cycle
 
-rec <- matrix(0, rep.runs, 18)
+# distributions to consider
+dist.list <- c("mixedNorm", "gamma")
+
+rec <- data.frame(matrix(0, rep.runs * length(p.list) * length(dist.list), 7))
+recInd <- 0
+
 for(i in 1:rep.runs){
-  Lambda <- disjointCycles::cycleChain(p, cycleSize = cycleSize, lowEdge = lowEdge, highEdge = highEdge,
-                                       parentProb = parentProb)
 
-  trueAdj <- (Lambda != 0) +0
-  trueGraph <- lapply(unname(split(1:p, rep(1:ceiling(p/cycleSize),
-                                            each = cycleSize)[1:p])),
-                      list)
-  cat("Iter ")
+  cat("Iter")
   cat(i)
-  data <- rLSEM(p, n, dist = "gamma", LambdaIn = Lambda, lowScale = lowScale, highScale = highScale)
+  cat("\n")
 
-  time1 <- system.time(est_ord <- djcGetOrderNew(data$Y, verbose = F, alpha2 = alpha,
-                                                 alpha3 = alpha, alphaR = alpha, pvalAdjMethod = mt,
-                                                 methodPR = pr,
-                                                 rescaleData = rescaleData))
+  for(pInd in 1:length(p.list)){
 
-  rec[i, 1] <- compareOrders(trueGraph, est_ord)
-  # ## Estimate edges given true layers
-  est_Edges <- djcGetEdges(trueGraph, data$Y, alpha = alpha,pvalAdjMethod = mt)
-  rec[i, 2] <- sum(est_Edges$adjMat *trueAdj) / sum(trueAdj)
-  rec[i, 3] <- sum((est_Edges$adjMat + trueAdj) == 0) / sum(trueAdj == 0)
-  rec[i, 4] <- sum(est_Edges$adjMat == trueAdj)
+    p <- p.list[pInd]
 
-  ## Estimate edges given estimated layers
-  time2 <- system.time(final_ord <- djcGetEdges(est_ord, data$Y, alpha = alpha,pvalAdjMethod = mt))
-  rec[i, 5] <- sum(final_ord$adjMat *trueAdj) / sum(trueAdj)
-  rec[i, 6] <- sum((final_ord$adjMat + trueAdj) == 0) / sum(trueAdj == 0)
-  rec[i, 7] <- sum(final_ord$adjMat == trueAdj)
+    cat("p: ")
+    cat(p)
+    cat("\n")
 
-  rec[i, 8] <- time1[3]
-  rec[i, 9] <- time2[3]
-
-
-  cat(": gamma done; ")
-#
-#   data <- rLSEM(p, n, dist = "mixedNorm", LambdaIn = Lambda, lowScale = lowScale, highScale = highScale)
-#   time1 <- system.time(est_ord <- djcGetOrderNew(data$Y, verbose = F, alpha2 = alpha,
-#                                                  alpha3 = alpha, alphaR = alpha, pvalAdjMethod = mt, methodPR = pr,
-#                                                  rescaleData = rescaleData))
-#
-#   rec[i, 10] <- compareOrders(trueGraph, est_ord)
-#
-#   # ## Estimate edges given true layers
-#   est_Edges <- djcGetEdges(trueGraph, data$Y,
-#                            alpha = alpha, pvalAdjMethod = mt)
-#
-#   rec[i, 11] <- sum(est_Edges$adjMat *trueAdj) / sum(trueAdj)
-#   rec[i, 12] <- sum((est_Edges$adjMat + trueAdj) == 0) / sum(trueAdj == 0)
-#   rec[i, 13] <- sum(est_Edges$adjMat == trueAdj)
-#   #
-#   #
-#   # ## Estimate edges given true layers
-#   time2 <- system.time(final_ord <- djcGetEdges(est_ord, data$Y,
-#                                                 alpha = alpha, pvalAdjMethod = mt))
-#
-#   rec[i, 14] <- sum(final_ord$adjMat *trueAdj) / sum(trueAdj)
-#   rec[i, 15] <- sum((final_ord$adjMat + trueAdj) == 0) / sum(trueAdj == 0)
-#   rec[i, 16] <- sum(final_ord$adjMat == trueAdj)
-#
-#   rec[i, 17] <- time1[3]
-#   rec[i, 18] <- time2[3]
-#
-#   cat(": mixNorm done; ")
-
-  # data <- rLSEM(p, n, dist = "lognorm", LambdaIn = Lambda, lowScale = .8, highScale = 1)
-  # est_ord <- djcGetOrderNew(data$Y, verbose = F, alpha2 = alpha,
-  #                           alpha3 = alpha, alphaR = alpha, pvalAdjMethod = mt, methodPR = pr,
-  #                           rescaleData = rescaleData)
-  # rec[i, 15] <- compareOrders(trueGraph, est_ord)
-  #
-  # # ## Estimate edges given true layers
-  # est_Edges <- djcGetEdges(trueGraph, data$Y,
-  #                          alpha = alpha, pvalAdjMethod = mt)
-  #
-  # rec[i, 16] <- sum(est_Edges$adjMat *trueAdj) / sum(trueAdj)
-  # rec[i, 17] <- sum((est_Edges$adjMat + trueAdj) == 0) / sum(trueAdj == 0)
-  # rec[i, 18] <- sum(est_Edges$adjMat == trueAdj)
-  # #
-  # #
-  # # ## Estimate edges given true layers
-  # final_ord <- djcGetEdges(est_ord, data$Y,
-  #                          alpha = alpha, pvalAdjMethod = mt)
-  #
-  # rec[i, 19] <- sum(final_ord$adjMat *trueAdj) / sum(trueAdj)
-  # rec[i, 20] <- sum((final_ord$adjMat + trueAdj) == 0) / sum(trueAdj == 0)
-  # rec[i, 21] <- sum(final_ord$adjMat == trueAdj)
-  # cat(": lognormal done")
+    ## Generate Lambda and record adjacency matrix
+    Lambda <- disjointCycles::cycleChain(p, cycleSize = cycleSize,
+                                         lowEdge = lowEdge, highEdge = highEdge,
+                                         parentProb = parentProb)
+    trueAdj <- (Lambda != 0) +0
+    trueGraph <- lapply(unname(split(1:p, rep(1:ceiling(p/cycleSize),
+                                              each = cycleSize)[1:p])), list)
 
 
 
+    # sample data from each type of distribution in d.list
+    for(distInd in 1:length(dist.list)){
+
+        recInd <- recInd + 1
+        cat(dist.list[distInd])
+
+        # sample data
+        data <- rLSEM(p, n, dist = dist.list[distInd], LambdaIn = Lambda,
+                      lowScale = lowScale, highScale = highScale)
+
+        # estimate ordering for the graph
+        time1 <- system.time(est_ord <-
+                               disjointCycles::djcGetOrderNew(data$Y,
+                                                              verbose = T, alpha2 = alpha,
+                                                              alpha3 = alpha, alphaR = alpha, pvalAdjMethod = mt,
+                                                              methodPR = pr,
+                                                              rescaleData = rescaleData))
+
+        rec[recInd, 1] <- p
+        rec[recInd, 2] <- as.character(dist.list[distInd])
+
+        rec[recInd, 3] <- compareOrders(trueGraph, est_ord)
+
+        # Estimate edges given estimated layers
+        time2 <- system.time(est_Edges <-
+                               djcGetEdges(est_ord, data$Y, alpha = alpha,
+                                           pvalAdjMethod = mt))
+
+        # True positives
+        rec[recInd, 4] <- (sum(est_Edges$adjMat *trueAdj) - p) / (sum(trueAdj) -p)
+        # True negatives
+        rec[recInd, 5] <- (sum((est_Edges$adjMat + trueAdj) == 0) - p) / (sum(trueAdj == 0) -p)
+        # correct edges
+        rec[recInd, 6] <- sum(est_Edges$adjMat == trueAdj)
+
+        # time for each step
+        rec[recInd, 7] <- time1[3]
+        rec[recInd, 8] <- time2[3]
+
+        }
+    }
 }
 
-colnames(rec) <- paste(rep(c("gamma", "mixNorm"), each = 9),
-                       rep(c("order", "oracle_sen", "oracle_spc", "oracle_edges",
-                             "est_sen", "est_spc", "est_edges", "timeOrd", "timeEdges"), times= 2),
-                       sep = "_")
+colnames(rec) <-c("p", "dist", "order", "est_sen", "est_spc", "est_edges", "timeOrd", "timeEdges")
 
-outTab <- data.frame(p, cycleSize, alpha, n, mt, pr, rescaleData, rec)
+outTab <- data.frame(cycleSize, alpha, n, mt, pr, rescaleData, rec)
+#
+# write.csv(outTab, paste("../results/large/large_",runInd, ".csv", sep = ""), row.names = F)
 
-write.csv(outTab, paste("../results/large/large1_",runInd, ".csv", sep = ""), row.names = F)
-
-#
-#
-#
-# library("disjointCycles")
-# library("tidyverse")
-# sample.size <- 200
-# rep.runs <- 10
-# n.list <- c(25, 50) * 1000
-# a.list <- c(2.5e-1, 1e-1, 1e-2, 1e-3, 1e-4)
-# mt.list <- c("BH", "holm")
-# pr.list <- c("naive", "chisq")
-# c.list <- c(6)
-# res.list <- c(T)
-# param.grid <- expand.grid(rep(n.list, sample.size / rep.runs), a.list, mt.list, pr.list, c.list, res.list)
-# dim(param.grid)
-#
-# runInd <- 1
-# outTabComp <- read.csv(paste("~/Dropbox/disjointCycles/simResults/large/large_",runInd, ".csv", sep = ""),)
-# missing <- c()
-# for(runInd in 2:nrow(param.grid)){
-#   if(!file.exists(paste("~/Dropbox/disjointCycles/simResults/large/large_", runInd, ".csv", sep = ""))){
-#     missing <- c(missing, runInd)
-#   } else {
-#     temp <- read.csv(paste("~/Dropbox/disjointCycles/simResults/large/large_", runInd, ".csv", sep = ""))
-#     outTabComp <- rbind(outTabComp, temp)
-#   }
-#
-# }
-# missing
-#
-#
-# agTab <- outTabComp %>% group_by(p, n, alpha, mt, pr, rescaleData) %>%
-#   summarize(g_ord = mean(gamma_order), m_ord = mean(mixNorm_order),
-#             ln_ord = mean(ln_order),
-#             g_edge_est = mean(gamma_est_edges), m_edge_est = mean(mixNorm_est_edges),
-#             ln_edge_est = mean(ln_est_edges),
-#             g_edge_orc = mean(gamma_oracle_edges), m_edge_orc = mean(mixNorm_oracle_edges),
-#             ln_edge_orc = mean(ln_oracle_edges))
-#
-# agTab %>% filter(n == 50000, mt == "holm")
-#
-# agTabMax <- agTab %>% filter(rescaleData == T) %>%group_by(p, n, pr) %>%
-#   summarize(g_ord = max(g_ord), m_ord = max(m_ord), ln_ord = max(ln_ord),
-#             g_edge_est = max(g_edge_est), m_edge_est = max(m_edge_est), ln_edge_est = max(ln_edge_est),
-#             g_edge_orc = max(g_edge_orc), m_edge_orc = max(m_edge_orc), ln_edge_orc = max(ln_edge_orc)) %>% print(n = 50)
-#
+## Create Plots
 library("disjointCycles")
 library("tidyverse")
-sample.size <- 20
-rep.runs <- 1
-# p.list <- c(20, 25, 30)
-p.list <- seq(30, 50, by = 10)
-n.list <- c(50, 100) * 1000
-a.list <- c(2.5e-1, 1e-1, 1e-2, 1e-4)
+sample.size <- 100
+rep.runs <- 2
+p.list <- c(30, 45, 60)
+n.list <- c(10, 25, 50, 100) * 1000
+a.list <- c(2e-1, 5e-2, 1e-2, 1e-3)
 mt.list <- c("BH", "holm")
-pr.list <- c("naive")
-c.list <- c(5)
+pr.list <- c("chisq")
+c.list <- c(3)
 res.list <- c(T)
-param.grid <- expand.grid(rep(n.list, sample.size / rep.runs), a.list, mt.list, pr.list, c.list, res.list, p.list)
+ep.list <- c(1/2)
+param.grid <- expand.grid(rep(n.list, sample.size / rep.runs), a.list, mt.list, pr.list, c.list, res.list, ep.list)
 dim(param.grid)
 
-
 runInd <- 1
-outTabComp1 <- read.csv(paste("~/Dropbox/disjointCycles/simResults/large/large1_",runInd, ".csv", sep = ""),)
+outTabComp1 <- read.csv(paste("~/Dropbox/disjointCycles/simResults/large/large_",runInd, ".csv", sep = ""),)
 missing <- c()
 for(runInd in 2:nrow(param.grid)){
-  if(!file.exists(paste("~/Dropbox/disjointCycles/simResults/large/large1_", runInd, ".csv", sep = ""))){
+  if(!file.exists(paste("~/Dropbox/disjointCycles/simResults/large/large_", runInd, ".csv", sep = ""))){
     missing <- c(missing, runInd)
   } else {
-    temp <- read.csv(paste("~/Dropbox/disjointCycles/simResults/large/large1_", runInd, ".csv", sep = ""))
+    temp <- read.csv(paste("~/Dropbox/disjointCycles/simResults/large/large_", runInd, ".csv", sep = ""))
+
+    if(any(temp$agree < 1) ){
+      cat(runInd)
+      cat("\n")
+    }
     outTabComp1 <- rbind(outTabComp1, temp)
   }
 
 }
 missing
 
+agTab1 <- outTabComp1 %>% group_by(p, n, mt, alpha, cycleSize, pr, dist) %>%
+  summarize(order = mean(order),
+            edges = mean((est_edges -p)/ (p* (p-1))),
+            num = length(timeOrd),
+            totalTime = mean(timeOrd) + mean(timeEdges))
+
+table(agTab1$num)
 
 
-agTab1 <- outTabComp1 %>% group_by(p, n, mt, alpha, pr, rescaleData) %>%
-  summarize(g_ord = mean(gamma_order),
-            g_edge_est = mean((gamma_est_edges -p)/(p*(p-1))))
+agTabMax1 <- agTab1 %>%  group_by(p, dist, n) %>%
+  summarize(maxInd = which.max(edges),
+            order = max(order),
+            edges = max(edges),
+            totalTime = totalTime[maxInd])
+
+
+
+setEPS()
+postscript("~/Dropbox/Apps/Overleaf/Cyclic linear non-Gaussian causal models/figures/gamma3.eps", width = 8, height = 4)
+par(mfrow = c(1,2))
+plot(1:4, rep(-2, 4), ylim = c(0, .8),
+     ylab = "Correct Order", xlab = "", xaxt = "n")
+rect(par("usr")[1],par("usr")[3],par("usr")[2],par("usr")[4],col = "gray92")
+abline(h = seq(0, 1, by = .2), lty = 3, col = "white", lwd = 2)
+lines(unlist(agTabMax1[which(agTabMax1$p == 30 & agTabMax1$dist == "gamma"), 5]), col = "darkred", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 45 & agTabMax1$dist == "gamma"), 5]), col = "darkgreen", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 60 & agTabMax1$dist == "gamma"), 5]), col = "darkblue", type = "b")
+axis(side = 1, labels = n.list/1000, at = 1:4)
+
+
+plot(1:4, rep(-2, 4), ylim = c(.7, .9),
+     ylab = "Correct Edges", xlab = "", xaxt = "n")
+rect(par("usr")[1],par("usr")[3],par("usr")[2],par("usr")[4],col = "gray92")
+abline(h = seq(0, 1, by = .05), lty = 3, col = "white", lwd = 2)
+axis(side = 1, labels = n.list/1000, at = 1:4)
+lines(unlist(agTabMax1[which(agTabMax1$p == 30 & agTabMax1$dist == "gamma"), 6]), col = "darkred", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 45 & agTabMax1$dist == "gamma"), 6]), col = "darkgreen", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 60 & agTabMax1$dist == "gamma"), 6]), col = "darkblue", type = "b")
+
+par(fig=c(0, 1, 0, 1), oma=c(0, 0, 0, 0), mar=c(0, 0, 0, 0), new=TRUE)
+
+plot(0, 0, type='n', bty='n', xaxt='n', yaxt='n', main = "")
+legend("bottom", legend = c("p =  ",  "30", "45", "60"),
+       pch = c(NA, 1, 1, 1), col = c( "white", "darkred", "darkgreen", "darkblue"),
+       ncol = 4)
+mtext("Gamma Errors", line = -2)
+dev.off()
+
+
+
+setEPS()
+postscript("~/Dropbox/Apps/Overleaf/Cyclic linear non-Gaussian causal models/figures/norm3.eps", width = 8, height = 4)
+par(mfrow = c(1,2))
+plot(1:4, rep(-2, 4), ylim = c(0, .8),
+     ylab = "Correct Order", xlab = "", xaxt = "n")
+rect(par("usr")[1],par("usr")[3],par("usr")[2],par("usr")[4],col = "gray92")
+abline(h = seq(0, 1, by = .2), lty = 3, col = "white", lwd = 2)
+axis(side = 1, labels = n.list/1000, at = 1:4)
+lines(unlist(agTabMax1[which(agTabMax1$p == 30 & agTabMax1$dist == "mixedNorm"), 5]), col = "darkred", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 45 & agTabMax1$dist == "mixedNorm"), 5]), col = "darkgreen", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 60 & agTabMax1$dist == "mixedNorm"), 5]), col = "darkblue", type = "b")
+
+
+plot(1:4, rep(-2, 4), ylim = c(.7, .9),
+     ylab = "Correct Edges", xlab = "", xaxt = "n")
+rect(par("usr")[1],par("usr")[3],par("usr")[2],par("usr")[4],col = "gray92")
+abline(h = seq(0, 1, by = .05), lty = 3, col = "white", lwd = 2)
+axis(side = 1, labels = n.list/1000, at = 1:4)
+
+lines(unlist(agTabMax1[which(agTabMax1$p == 30 & agTabMax1$dist == "mixedNorm"), 6]), col = "darkred", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 45 & agTabMax1$dist == "mixedNorm"), 6]), col = "darkgreen", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 60 & agTabMax1$dist == "mixedNorm"), 6]), col = "darkblue", type = "b")
+
+
+
+par(fig=c(0, 1, 0, 1), oma=c(0, 0, 0, 0), mar=c(0, 0, 0, 0), new=TRUE)
+
+plot(0, 0, type='n', bty='n', xaxt='n', yaxt='n', main = "")
+legend("bottom", legend = c("p =  ",  "30", "45", "60"),
+       pch = c(NA, 1, 1, 1), col = c( "white", "darkred", "darkgreen", "darkblue"),
+       ncol = 4)
+mtext("Mixture of Normal Errors", line = -2)
+dev.off()
 
 
 
 
-agTabMax1 <- agTab1 %>%  group_by(p, n, mt) %>%
-  summarize(g_ord = max(g_ord),
-            g_edge_est = max(g_edge_est)) %>% print(n = 50)
+setEPS()
+postscript("~/Dropbox/Apps/Overleaf/Cyclic linear non-Gaussian causal models/figures/combined.eps",
+           width = 5, height = 5)
+par(mfrow = c(2,2))
+par(mar = c(1,.5, .5, .2), oma = c(5, 4, 2, 1))
+
+plot(1:4, rep(-2, 4), ylim = c(0, .8),
+     ylab = "Correct Order", xlab = "", xaxt = "n")
+rect(par("usr")[1],par("usr")[3],par("usr")[2],par("usr")[4],col = "gray92")
+abline(h = seq(0, 1, by = .2), lty = 3, col = "white", lwd = 2)
+lines(unlist(agTabMax1[which(agTabMax1$p == 30 & agTabMax1$dist == "gamma"), 5]), col = "darkred", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 45 & agTabMax1$dist == "gamma"), 5]), col = "darkgreen", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 60 & agTabMax1$dist == "gamma"), 5]), col = "darkblue", type = "b")
+mtext("Gamma Errors")
+mtext("% Correct Order", side = 2, line = 3)
 
 
-agTabMax1
+plot(1:4, rep(-2, 4), ylim = c(0, .8),
+     ylab = "", xlab = "", xaxt = "n", yaxt = "n")
+rect(par("usr")[1],par("usr")[3],par("usr")[2],par("usr")[4],col = "gray92")
+abline(h = seq(0, 1, by = .2), lty = 3, col = "white", lwd = 2)
+lines(unlist(agTabMax1[which(agTabMax1$p == 30 & agTabMax1$dist == "mixedNorm"), 5]), col = "darkred", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 45 & agTabMax1$dist == "mixedNorm"), 5]), col = "darkgreen", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 60 & agTabMax1$dist == "mixedNorm"), 5]), col = "darkblue", type = "b")
+mtext("Mixture of Normal Errors")
+
+
+plot(1:4, rep(-2, 4), ylim = c(.7, .9),
+     ylab = "Correct Edges", xlab = "", xaxt = "n")
+rect(par("usr")[1],par("usr")[3],par("usr")[2],par("usr")[4],col = "gray92")
+abline(h = seq(0, 1, by = .05), lty = 3, col = "white", lwd = 2)
+axis(side = 1, labels = n.list/1000, at = 1:4)
+lines(unlist(agTabMax1[which(agTabMax1$p == 30 & agTabMax1$dist == "gamma"), 6]), col = "darkred", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 45 & agTabMax1$dist == "gamma"), 6]), col = "darkgreen", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 60 & agTabMax1$dist == "gamma"), 6]), col = "darkblue", type = "b")
+mtext("% Correct Edges", side = 2, line = 3)
+
+plot(1:4, rep(-2, 4), ylim = c(.7, .9),
+     ylab = "", xlab = "", xaxt = "n", yaxt = "n")
+rect(par("usr")[1],par("usr")[3],par("usr")[2],par("usr")[4],col = "gray92")
+abline(h = seq(0, 1, by = .05), lty = 3, col = "white", lwd = 2)
+axis(side = 1, labels = n.list/1000, at = 1:4)
+
+lines(unlist(agTabMax1[which(agTabMax1$p == 30 & agTabMax1$dist == "mixedNorm"), 6]), col = "darkred", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 45 & agTabMax1$dist == "mixedNorm"), 6]), col = "darkgreen", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 60 & agTabMax1$dist == "mixedNorm"), 6]), col = "darkblue", type = "b")
+
+
+
+par(fig=c(0, 1, 0, 1), oma=c(0, 0, 0, 0), mar=c(0, 0, 0, 0), new=TRUE)
+
+plot(0, 0, type='n', bty='n', xaxt='n', yaxt='n', main = "")
+legend("bottom", legend = c("p =  ",  "30", "45", "60"),
+       pch = c(NA, 1, 1, 1), col = c( "white", "darkred", "darkgreen", "darkblue"),
+       ncol = 4)
+dev.off()
+
+
+
+
+
+
+#
+#
+# setEPS()
+# postscript("~/Dropbox/Apps/Overleaf/Cyclic linear non-Gaussian causal models/figures/large_sims_time.eps", width = 8, height = 4)
+# plot(1:4, rep(.5, 4), ylim = c(10, 5000),
+#      ylab = "Time (sec)", xlab = "n (in 000s)", xaxt = "n", log = "y")
+#
+#
+# abline(h = seq(0, 1, by = .05), lty = 3, col = "white", lwd = 2)
+# axis(side = 1, labels = n.list/1000, at = 1:4)
+# mtext(side = 2, "Time (sec)", line = 3)
+# lines(unlist(agTabMax1[which(agTabMax1$p == 30 & agTabMax1$dist == "gamma"), 7]), col = "darkred", type = "b")
+# lines(unlist(agTabMax1[which(agTabMax1$p == 45 & agTabMax1$dist == "gamma"), 7]), col = "darkgreen", type = "b")
+# lines(unlist(agTabMax1[which(agTabMax1$p == 60 & agTabMax1$dist == "gamma"), 7]), col = "darkblue", type = "b")
+#
+# lines(unlist(agTabMax1[which(agTabMax1$p == 30 & agTabMax1$dist == "mixedNorm"), 7]), col = "darkred", type = "b", lty = 2)
+# lines(unlist(agTabMax1[which(agTabMax1$p == 45 & agTabMax1$dist == "mixedNorm"), 7]), col = "darkgreen", type = "b", lty = 2)
+# lines(unlist(agTabMax1[which(agTabMax1$p == 60 & agTabMax1$dist == "mixedNorm"), 7]), col = "darkblue", type = "b")
+# legend("bottomleft", legend = c("p =  ",  "30", "45", "60"),
+#        pch = c(NA, 1, 1, 1), col = c( "white", "darkred", "darkgreen", "darkblue"),
+#        ncol = 4)
+# legend("bottomright", legend = c("gamma", "mix norm"),
+#        col = c("black"), lty = c(1, 2),
+#        ncol = 2)
+# dev.off()
+
+
+
+library("disjointCycles")
+library("tidyverse")
+sample.size <- 100
+rep.runs <- 2
+p.list <- c(30, 45, 60)
+n.list <- c(10, 25, 50, 100) * 1000
+a.list <- c(2e-1, 5e-2, 1e-2, 1e-3)
+mt.list <- c("BH", "holm")
+pr.list <- c("chisq")
+c.list <- c(3)
+res.list <- c(T)
+ep.list <- c(1/2)
+param.grid <- expand.grid(rep(n.list, sample.size / rep.runs), a.list, mt.list, pr.list, c.list, res.list, ep.list)
+dim(param.grid)
+
+runInd <- 1
+outTabComp1 <- read.csv(paste("~/Dropbox/disjointCycles/simResults/large/large5_",runInd, ".csv", sep = ""),)
+missing <- c()
+for(runInd in 2:nrow(param.grid)){
+  if(!file.exists(paste("~/Dropbox/disjointCycles/simResults/large/large5_", runInd, ".csv", sep = ""))){
+    missing <- c(missing, runInd)
+  } else {
+    temp <- read.csv(paste("~/Dropbox/disjointCycles/simResults/large/large5_", runInd, ".csv", sep = ""))
+
+    if(any(temp$agree < 1) ){
+      cat(runInd)
+      cat("\n")
+    }
+    outTabComp1 <- rbind(outTabComp1, temp)
+  }
+
+}
+missing
+
+agTab1 <- outTabComp1 %>% group_by(p, n, mt, alpha, cycleSize, pr, dist) %>%
+  summarize(order = mean(order),
+            edges = mean((est_edges -p)/ (p* (p-1))),
+            num = length(timeOrd),
+            totalTime = mean(timeOrd) + mean(timeEdges))
+
+table(agTab1$num)
+
+
+agTabMax1 <- agTab1 %>%  group_by(p, dist, n) %>%
+  summarize(maxInd = which.max(edges),
+            order = max(order),
+            edges = max(edges),
+            totalTime = totalTime[maxInd])
+
+
+agTabMax1 %>% print(n = 100)
+
+setEPS()
+postscript("~/Dropbox/Apps/Overleaf/Cyclic linear non-Gaussian causal models/figures/gamma5.eps", width = 8, height = 4)
+par(mfrow = c(1,2))
+plot(1:4, rep(-2, 4), ylim = c(0, .8),
+     ylab = "Correct Order", xlab = "", xaxt = "n")
+rect(par("usr")[1],par("usr")[3],par("usr")[2],par("usr")[4],col = "gray92")
+abline(h = seq(0, 1, by = .2), lty = 3, col = "white", lwd = 2)
+lines(unlist(agTabMax1[which(agTabMax1$p == 30 & agTabMax1$dist == "gamma"), 5]), col = "darkred", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 45 & agTabMax1$dist == "gamma"), 5]), col = "darkgreen", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 60 & agTabMax1$dist == "gamma"), 5]), col = "darkblue", type = "b")
+axis(side = 1, labels = n.list/1000, at = 1:4)
+
+
+plot(1:4, rep(-2, 4), ylim = c(.7, .9),
+     ylab = "Correct Edges", xlab = "", xaxt = "n")
+rect(par("usr")[1],par("usr")[3],par("usr")[2],par("usr")[4],col = "gray92")
+abline(h = seq(0, 1, by = .05), lty = 3, col = "white", lwd = 2)
+axis(side = 1, labels = n.list/1000, at = 1:4)
+lines(unlist(agTabMax1[which(agTabMax1$p == 30 & agTabMax1$dist == "gamma"), 6]), col = "darkred", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 45 & agTabMax1$dist == "gamma"), 6]), col = "darkgreen", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 60 & agTabMax1$dist == "gamma"), 6]), col = "darkblue", type = "b")
+
+par(fig=c(0, 1, 0, 1), oma=c(0, 0, 0, 0), mar=c(0, 0, 0, 0), new=TRUE)
+
+plot(0, 0, type='n', bty='n', xaxt='n', yaxt='n', main = "")
+legend("bottom", legend = c("p =  ",  "30", "45", "60"),
+       pch = c(NA, 1, 1, 1), col = c( "white", "darkred", "darkgreen", "darkblue"),
+       ncol = 4)
+mtext("Gamma Errors", line = -2)
+mtext("5-cycles", line = -3)
+dev.off()
+
+
+
+setEPS()
+postscript("~/Dropbox/Apps/Overleaf/Cyclic linear non-Gaussian causal models/figures/norm5.eps", width = 8, height = 4)
+par(mfrow = c(1,2))
+plot(1:4, rep(-2, 4), ylim = c(0, .8),
+     ylab = "Correct Order", xlab = "", xaxt = "n")
+rect(par("usr")[1],par("usr")[3],par("usr")[2],par("usr")[4],col = "gray92")
+abline(h = seq(0, 1, by = .2), lty = 3, col = "white", lwd = 2)
+axis(side = 1, labels = n.list/1000, at = 1:4)
+lines(unlist(agTabMax1[which(agTabMax1$p == 30 & agTabMax1$dist == "mixedNorm"), 5]), col = "darkred", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 45 & agTabMax1$dist == "mixedNorm"), 5]), col = "darkgreen", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 60 & agTabMax1$dist == "mixedNorm"), 5]), col = "darkblue", type = "b")
+
+
+plot(1:4, rep(-2, 4), ylim = c(.7, .9),
+     ylab = "Correct Edges", xlab = "", xaxt = "n")
+rect(par("usr")[1],par("usr")[3],par("usr")[2],par("usr")[4],col = "gray92")
+abline(h = seq(0, 1, by = .05), lty = 3, col = "white", lwd = 2)
+axis(side = 1, labels = n.list/1000, at = 1:4)
+
+lines(unlist(agTabMax1[which(agTabMax1$p == 30 & agTabMax1$dist == "mixedNorm"), 6]), col = "darkred", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 45 & agTabMax1$dist == "mixedNorm"), 6]), col = "darkgreen", type = "b")
+lines(unlist(agTabMax1[which(agTabMax1$p == 60 & agTabMax1$dist == "mixedNorm"), 6]), col = "darkblue", type = "b")
+
+
+
+par(fig=c(0, 1, 0, 1), oma=c(0, 0, 0, 0), mar=c(0, 0, 0, 0), new=TRUE)
+
+plot(0, 0, type='n', bty='n', xaxt='n', yaxt='n', main = "")
+legend("bottom", legend = c("p =  ",  "30", "45", "60"),
+       pch = c(NA, 1, 1, 1), col = c( "white", "darkred", "darkgreen", "darkblue"),
+       ncol = 4)
+mtext("Mixture of Normal Errors", line = -2)
+mtext("5-cycles", line = -3)
+dev.off()
+
+
+#
+# par(fig=c(0, 1, 0, 1), oma=c(0, 0, 0, 0), mar=c(0, 0, 0, 0), new=TRUE)
+#
+# plot(0, 0, type='n', bty='n', xaxt='n', yaxt='n')
+# legend("bottom", legend = c("p =  ",  "30", "45", "60"),
+#        pch = c(NA, 1, 1, 1), col = c( "white", "darkred", "darkgreen", "darkblue"),
+#        ncol = 4)
+# dev.off()
+#
+#
+# setEPS()
+# postscript("~/Dropbox/Apps/Overleaf/Cyclic linear non-Gaussian causal models/figures/large_sims_time.eps", width = 8, height = 4)
+# plot(1:4, rep(.5, 4), ylim = c(10, 5000),
+#      ylab = "Time (sec)", xlab = "n (in 000s)", xaxt = "n", log = "y")
+#
+#
+# abline(h = seq(0, 1, by = .05), lty = 3, col = "white", lwd = 2)
+# axis(side = 1, labels = n.list/1000, at = 1:4)
+# mtext(side = 2, "Time (sec)", line = 3)
+# lines(unlist(agTabMax1[which(agTabMax1$p == 30 & agTabMax1$dist == "gamma"), 7]), col = "darkred", type = "b")
+# lines(unlist(agTabMax1[which(agTabMax1$p == 45 & agTabMax1$dist == "gamma"), 7]), col = "darkgreen", type = "b")
+# lines(unlist(agTabMax1[which(agTabMax1$p == 60 & agTabMax1$dist == "gamma"), 7]), col = "darkblue", type = "b")
+#
+# lines(unlist(agTabMax1[which(agTabMax1$p == 30 & agTabMax1$dist == "mixedNorm"), 7]), col = "darkred", type = "b", lty = 2)
+# lines(unlist(agTabMax1[which(agTabMax1$p == 45 & agTabMax1$dist == "mixedNorm"), 7]), col = "darkgreen", type = "b", lty = 2)
+# lines(unlist(agTabMax1[which(agTabMax1$p == 60 & agTabMax1$dist == "mixedNorm"), 7]), col = "darkblue", type = "b")
+# legend("bottomleft", legend = c("p =  ",  "30", "45", "60"),
+#        pch = c(NA, 1, 1, 1), col = c( "white", "darkred", "darkgreen", "darkblue"),
+#        ncol = 4)
+# legend("bottomright", legend = c("gamma", "mix norm"),
+#        col = c("black"), lty = c(1, 2),
+#        ncol = 2)
+# dev.off()
 
