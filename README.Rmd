@@ -13,7 +13,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-# The cdcs package
+# The disjointCycles package
 
 <!-- badges: start -->
 <!-- badges: end -->
@@ -24,7 +24,7 @@ Models with Disjoint Cycles'' by Drton, Garrote-Lopez, Nikov, Robeva and Wang. S
 
 ## Installation
 
-You can install the R package \texttt{disjointCycles} (the acronym is for Causal Discovery Confidence Sets) from it's [GitHub repository](https://github.com/ysamwang/disjointCycles) with the following code:
+You can install the R package \texttt{disjointCycles} from it's [GitHub repository](https://github.com/ysamwang/disjointCycles) with the following code:
 
 ``` r
 # install.packages("pak")
@@ -34,7 +34,7 @@ pak::pak("ysamwang/disjointCycles")
 ## Replicating the numerical results in the paper
 The simulations provided in the paper are quite extensive and would require a high performance cluster to replicate the exact settings used in the paper. Nonetheless, we provide the code used to generate numerical results and under settings where the problem size and number of replications can run on most personal machines.
 
-* To replicate the simulations used to create Table 1 use the script table1_replication.R
-* To replicate the simulations in the appendix use the script appendix_replication.R
+* To replicate the simulations used to create Figure 4 and 5 use the script large_sim.R
+* To replicate the simulations in Section 5 regarding the ICA based procedure use the script ica_cluster_sim.R. You will also need pytetrad which can be accessed at this [github repository](https://github.com/cmu-phil/py-tetrad).
 
 

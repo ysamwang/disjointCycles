@@ -174,7 +174,7 @@ djc_recurNew <- function(Y, alpha2 = .01, alpha3 = .01, alphaR = .01,
   if(methodRoot == "indDelta"){
 
     # singletonRoots contains any nodes which do not have rejected null
-    singletonRoots <- which(apply(det2, MAR = 1, FUN = min, na.rm = T) > alpha2)
+    singletonRoots <- which(apply(det2, MARGIN = 1, FUN = min, na.rm = T) > alpha2)
 
 
   } else if(methodRoot == "jointDelta") {
